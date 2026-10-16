@@ -1,6 +1,10 @@
 #
 # See https://kubernetes.io/docs/concepts/services-networking/ingress/
 #
+env:
+  - name: REDIS_HOST
+    value: "redis-service"
+
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
