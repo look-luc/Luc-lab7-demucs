@@ -102,10 +102,10 @@ def get_queue():
 
     return {"queue": queue_items}, 200
 
-@app.route('/apiv1//<songhash>/<track_name>', methods=["GET"])
+@app.route('/apiv1/track/<songhash>/track', methods=["GET"])
 def get_track(songhash, track_name):
-    object_name = f"{songhash}-{track_name}"
-    bucket_name = "output-bucket"  # Update to match your actual Min.io output bucket name
+    object_name = f"{songhash}"
+    bucket_name = "output-bucket"
 
     try:
         # Fetch the object stream from Min.io
@@ -125,7 +125,7 @@ def get_track(songhash, track_name):
     except Exception as e:
         return {"error": str(e)}, 404
 
-@app.route('/apiv1/remove/<songhash>/<track_name>', methods=['GET', 'DELETE'])
+@app.route('/apiv1/remove/<songhash>/track', methods=['GET', 'DELETE'])
 def remove_track(songhash, track_name):
     object_name = f"{songhash}-{track_name}"
     bucket_name = "output-bucket"
