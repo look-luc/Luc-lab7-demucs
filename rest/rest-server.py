@@ -3,6 +3,8 @@ import hashlib
 import io
 import json
 import os
+import platform
+import sys
 
 from flask import Flask, jsonify, request, send_file
 
@@ -17,12 +19,28 @@ QUEUE_NAME = "Song enqueued for separation"
 MINIO_ENDPOINT = os.environ.get('MINIO_ENDPOINT', 'localhost:9000')
 minio_client = minio.Minio(
     MINIO_ENDPOINT,
-    access_key="minioadmin",
-    secret_key="minioadmin",
+    access_key="rootuser",
+    secret_key="rootpass123",
     secure=False
 )
 
-BUCKET_NAME = "audio-input"
+BUCKET_NAME = "demucs-bucket"
+
+redisHost = os.getenv("REDIS_HOST") or "localhost"
+redisPort = os.getenv("REDIS_PORT") or 6379
+
+infoKey = "{}.rest.info".format(platform.node())
+debugKey = "{}.rest.debug".format(platform.node())
+
+def log_debug(message, key=debugKey):
+    print("DEBUG:", message, file=sys.stdout)
+    redisClient = redis.StrictRedis(host=redisHost, port=redisPort, db=0)
+    redisClient.lpush('logging', f"{debugKey}:{message}")
+
+def log_info(message, key=infoKey):
+    print("INFO:", message, file=sys.stdout)
+    redisClient = redis.StrictRedis(host=redisHost, port=redisPort, db=0)
+    redisClient.lpush('logging', f"{infoKey}:{message}")
 
 @app.route("/", methods=["GET"])
 def hello_world():
@@ -105,7 +123,7 @@ def get_queue():
 @app.route('/apiv1/track/<songhash>/track', methods=["GET"])
 def get_track(songhash, track_name):
     object_name = f"{songhash}"
-    bucket_name = "output-bucket"
+    bucket_name = "demucs-bucket"
 
     try:
         # Fetch the object stream from Min.io
@@ -128,7 +146,7 @@ def get_track(songhash, track_name):
 @app.route('/apiv1/remove/<songhash>/track', methods=['GET', 'DELETE'])
 def remove_track(songhash, track_name):
     object_name = f"{songhash}-{track_name}"
-    bucket_name = "output-bucket"
+    bucket_name = "demucs-bucket"
 
     try:
         minio_client.remove_object(bucket_name, object_name)

@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker-deployment
+  labels:
+    app: worker
+spec:
+  replicas: 1  # Number of worker instances running in your cluster
+  selector:
+    matchLabels:
+      app: worker
+  template:
+    metadata:
+      labels:
+        app: worker
+    spec:
+      containers:
+      - name: worker
+        image: lookitsluc/demucs-worker:v1  # Replace with your Docker Hub username and image tag
+        imagePullPolicy: Always  # Ensures Kubernetes pulls the latest pushed image version
+        resources:
+          requests:
+            cpu: "500m"
+            memory: "2Gi"    # DEMUCS requires significant memory for audio processing[cite: 20]
+          limits:
+            cpu: "2000m"
+            memory: "4Gi"
+        env:
+          - name: REDIS_HOST
+            value: "redis"   # Points to your Kubernetes redis service[cite: 10]
+          - name: REDIS_PORT
+            value: "6379"
+          - name: MINIO_ENDPOINT
+            value: "minio:9000"  # Points to your Kubernetes Min.io service endpoint[cite: 6, 17]
