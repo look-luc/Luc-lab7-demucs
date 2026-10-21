@@ -1,6 +1,6 @@
 FROM xserrat/facebook-demucs:latest
 
-LABEL MAINTAINER="your-email@colorado.edu"
+LABEL MAINTAINER="lude4390@colorado.edu"
 
 RUN pip3 install --no-cache-dir --upgrade minio redis requests
 

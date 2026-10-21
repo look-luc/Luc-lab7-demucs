@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 kubectl create namespace minio-ns
  kubectl apply -f minio/minio-deployment.yaml

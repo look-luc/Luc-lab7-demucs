@@ -12,8 +12,7 @@ import minio
 import redis
 
 app = Flask(__name__)
-REDIS_HOST = os.environ.get('REDIS_HOST', 'localhost')
-redis_client = redis.Redis(host=REDIS_HOST, port=6379, db=0)
+redis_client = redis.Redis(host="redis", port=6379, db=0)
 QUEUE_NAME = "Song enqueued for separation"
 
 MINIO_ENDPOINT = os.environ.get('MINIO_ENDPOINT', 'localhost:9000')
