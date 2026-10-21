@@ -101,8 +101,10 @@ Processing an MP3 file takes a while - they also take a fair amount of memory (a
   kubectl apply -f rest/rest-deployment.yaml
   kubectl apply -f rest/rest-service.yaml
   kubectl apply -f logs/logs-deployment.yaml
-  kubectl apply -f worker/worker-deployment.yaml```
+  kubectl apply -f worker/worker-deployment.yaml
+  ```
 3. **Run Tests:**
   Use the short sample request script to test end-to-end functionality:
   ```bash
-  python3 short-sample-request.py```
+  python3 short-sample-request.py
+  ```
