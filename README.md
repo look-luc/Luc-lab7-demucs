@@ -66,3 +66,43 @@ to forward your Redis database to port 6379 on your computer and minio to local 
 We've produced two programs `sample-requests.py` and `short-sample-requests.py` that make some sample requests.
 
 Processing an MP3 file takes a while - they also take a fair amount of memory (at least 6GB in my experience). You're encouraged to use the `short-sample-requests.py` examples on your laptop and then try the longer samples when using GKE.
+
+---
+
+## Implementation & Deployment Documentation
+
+### Architecture & Components Implemented
+* **REST API (`rest-server.py`)**: Handles incoming music separation requests via `/apiv1/separate`, manages job queues in Redis, and serves track retrieval and status endpoints[cite: 3, 5].
+* **Background Worker (`worker-server.py`)**: Consumes tasks from the Redis queue using blocking pops (`blpop`), fetches audio payloads from Min.io, runs Facebook's DEMUCS waveform separation, and uploads output stems back to object storage[cite: 3].
+* **Storage & Queue**: Uses **Redis** for lightweight event-driven messaging and **Min.io** for object caching of input songs and separated tracks[cite: 3].
+
+### Project File Structure
+* `rest-server.py` - Flask frontend application source code.
+* `worker-server.py` - Demucs background worker source code.
+* `Dockerfile-rest` - Container build file for the REST frontend.
+* `Dockerfile` - Container build file for the worker service.
+* `rest/rest-deployment.yaml` & `rest/rest-service.yaml` - Kubernetes manifests for the REST frontend.
+* `worker/worker-deployment.yaml` - Kubernetes manifest for the worker node.
+* `minio/minio-raw-deployment.yaml` & `minio/minio-external-service.yaml` - Object storage manifests and cluster service bindings.
+
+### How to Build and Run
+
+1. **Build and Tag Container Images:**
+   ```bash
+   docker build -f Dockerfile-rest -t lookitsluc/demucs-rest:v1 .
+   docker build -f Dockerfile -t lookitsluc/demucs-worker:v1 .
+2. **Deploy Infrastructure and Services:**
+  ```bash
+  kubectl create namespace minio-ns
+  kubectl apply -f minio/minio-raw-deployment.yaml -n minio-ns
+  kubectl apply -f minio/minio-external-service.yaml
+  kubectl apply -f redis/redis-deployment.yaml
+  kubectl apply -f redis/redis-service.yaml
+  kubectl apply -f rest/rest-deployment.yaml
+  kubectl apply -f rest/rest-service.yaml
+  kubectl apply -f logs/logs-deployment.yaml
+  kubectl apply -f worker/worker-deployment.yaml
+3. **Run Tests:**
+  Use the short sample request script to test end-to-end functionality:
+  ```bash
+  python3 short-sample-request.py
