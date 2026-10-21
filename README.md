@@ -91,6 +91,7 @@ Processing an MP3 file takes a while - they also take a fair amount of memory (a
    ```bash
    docker build -f Dockerfile-rest -t lookitsluc/demucs-rest:v1 .
    docker build -f Dockerfile -t lookitsluc/demucs-worker:v1 .```
+
 2. **Deploy Infrastructure and Services:**
   ```bash
   kubectl create namespace minio-ns
@@ -103,6 +104,7 @@ Processing an MP3 file takes a while - they also take a fair amount of memory (a
   kubectl apply -f logs/logs-deployment.yaml
   kubectl apply -f worker/worker-deployment.yaml
   ```
+
 3. **Run Tests:**
   Use the short sample request script to test end-to-end functionality:
   ```bash
