@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.6-alpine
 LABEL MAINTAINER="lude4390@colorado.edu"
 
 WORKDIR /srv
