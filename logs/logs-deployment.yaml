@@ -14,8 +14,7 @@ spec:
     spec:
       containers:
       - name: logs
-        image: lookitsluc/demucs-logs:v1
-        imagePullPolicy: Never
+        image: dirkcgrunwald/demucs-logs:v9
         resources:
           requests:
             cpu: 100m
