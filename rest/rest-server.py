@@ -12,10 +12,14 @@ import minio
 import redis
 
 app = Flask(__name__)
-redis_client = redis.Redis(host="redis", port=6379, db=0)
-QUEUE_NAME = "Song enqueued for separation"
 
-MINIO_ENDPOINT = os.environ.get('MINIO_ENDPOINT', 'localhost:9000')
+# Redis configuration
+redisHost = os.getenv("REDIS_HOST") or "redis"
+redisPort = int(os.getenv("REDIS_PORT") or 6379)
+redis_client = redis.Redis(host=redisHost, port=redisPort, db=0)
+
+# MinIO configuration
+MINIO_ENDPOINT = os.environ.get('MINIO_ENDPOINT', 'minio:9000')
 minio_client = minio.Minio(
     MINIO_ENDPOINT,
     access_key="rootuser",
@@ -23,112 +27,96 @@ minio_client = minio.Minio(
     secure=False
 )
 
-BUCKET_NAME = "demucs-bucket"
-
-redisHost = os.getenv("REDIS_HOST") or "localhost"
-redisPort = os.getenv("REDIS_PORT") or 6379
+# Ensure required MinIO buckets exist on startup[cite: 5]
+for bucket_name in ["queue", "output"]:
+    try:
+        if not minio_client.bucket_exists(bucket_name):
+            minio_client.make_bucket(bucket_name)
+    except Exception as e:
+        print(f"Error ensuring bucket {bucket_name} exists: {e}", file=sys.stderr)
 
 infoKey = "{}.rest.info".format(platform.node())
 debugKey = "{}.rest.debug".format(platform.node())
 
 def log_debug(message, key=debugKey):
     print("DEBUG:", message, file=sys.stdout)
-    redisClient = redis.StrictRedis(host=redisHost, port=redisPort, db=0)
-    redisClient.lpush('logging', f"{debugKey}:{message}")
+    try:
+        redis_client.lpush('logging', f"{debugKey}:{message}")
+    except Exception:
+        pass
 
 def log_info(message, key=infoKey):
     print("INFO:", message, file=sys.stdout)
-    redisClient = redis.StrictRedis(host=redisHost, port=redisPort, db=0)
-    redisClient.lpush('logging', f"{infoKey}:{message}")
+    try:
+        redis_client.lpush('logging', f"{infoKey}:{message}")
+    except Exception:
+        pass
 
 @app.route("/", methods=["GET"])
 def hello_world():
-    return '<h1> Music Separation Server</h1><p> Use a valid endpoint </p>'
+    return '<h1>Music Separation Server</h1><p>Use a valid endpoint</p>'
 
-def generate_song_hash(audio_bytes: bytes) -> str:
-    """
-    Generates a unique, deterministic SHA-256 hex string for a given byte array.
-    """
-    sha256_hash = hashlib.sha256()
-    # Update the hash in chunks if dealing with large memory loads
-    sha256_hash.update(audio_bytes)
-    return sha256_hash.hexdigest()
+@app.route('/apiv1/separate', methods=['POST'])
+def separate():
+    req_data = request.get_json()
+    if not req_data or 'mp3' not in req_data:
+        return jsonify({"error": "Missing 'mp3' field in JSON payload"}), 400
 
-@app.route('/apiv1/route_separate', methods=['POST'])
-def route_separate():
-    r = request.get_json()
-    if not r:
-        return jsonify({"error": "Invalid or missing JSON payload"})
-
-    model_name = r.get('model_name')
-    audio_base64 = r.get('audio_data')
-
-    if not model_name or not audio_base64:
-        return jsonify({"error": f"Missing 'model_name' or 'audio_data' in request, got {model_name} and {audio_base64}"})
-
+    mp3_b64 = req_data['mp3']
     try:
-        if "," in audio_base64:
-            audio_base64 = audio_base64.split(",")[-1]
-
-        audio_bytes = base64.b64decode(audio_base64)
+        if "," in mp3_b64:
+            mp3_b64 = mp3_b64.split(",")[-1]
+        audio_bytes = base64.b64decode(mp3_b64)
     except Exception as e:
-        return jsonify({"error": f"Failed to decode base64: {str(e)}"})
+        return jsonify({"error": f"Failed to decode base64 mp3 data: {str(e)}"}), 400
 
-    song_hash = generate_song_hash(audio_bytes)
-    object_name = f"{song_hash}.mp3"
+    # Generate unique song hash
+    sha256_hash = hashlib.sha256()
+    sha256_hash.update(audio_bytes)
+    song_hash = sha256_hash.hexdigest()
 
+    # Upload raw MP3 to MinIO 'queue' bucket[cite: 5]
     try:
-        if not minio_client.bucket_exists(BUCKET_NAME):
-            minio_client.make_bucket(BUCKET_NAME)
-
         audio_stream = io.BytesIO(audio_bytes)
         minio_client.put_object(
-            bucket_name=BUCKET_NAME,
-            object_name=object_name,
+            bucket_name="queue",
+            object_name=song_hash,
             data=audio_stream,
             length=len(audio_bytes),
             content_type="audio/mpeg"
         )
     except Exception as e:
+        log_debug(f"MinIO upload failed: {str(e)}")
         return jsonify({"error": f"MinIO storage failed: {str(e)}"}), 500
 
+    # Push songhash to Redis worker queue ('toWorker')
     try:
-        job_data = {
-            "song_hash": song_hash,
-            "model_name": model_name,
-            "object_name": object_name
-        }
-
-        redis_client.lpush(QUEUE_NAME, json.dumps(job_data))
+        redis_client.lpush('toWorker', song_hash)
+        log_info(f"Enqueued song {song_hash} for separation")
     except Exception as e:
+        log_debug(f"Redis lpush failed: {str(e)}")
         return jsonify({"error": f"Failed to push message to Redis queue: {str(e)}"}), 500
 
     return jsonify({
-        "status": "hash",
-        "song_hash": song_hash,
-        "reason": QUEUE_NAME
+        "hash": song_hash,
+        "reason": "Song enqueued for separation"
     }), 200
 
 @app.route('/apiv1/queue', methods=["GET"])
 def get_queue():
-    # Fetch all elements from index 0 to -1 in the 'toWorker' list
-    raw_queue = redis_client.lrange('toWorker', 0, -1)
-
-    # Decode bytes to strings so JSON serialization works smoothly
-    queue_items = [item.decode('utf-8') if isinstance(item, bytes) else item for item in raw_queue]
-
-    return {"queue": queue_items}, 200
-
-@app.route('/apiv1/track/<songhash>/track', methods=["GET"])
-def get_track(songhash, track_name):
-    object_name = f"{songhash}"
-    bucket_name = "demucs-bucket"
-
     try:
-        # Fetch the object stream from Min.io
-        response = minio_client.get_object(bucket_name, object_name)
+        raw_queue = redis_client.lrange('toWorker', 0, -1)
+        queue_items = [item.decode('utf-8') if isinstance(item, bytes) else item for item in raw_queue]
+        return jsonify({"queue": queue_items}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
-        # Read the response data into memory or stream it directly using send_file
+@app.route('/apiv1/track/<songhash>/<path:track_name>', methods=["GET"])
+def get_track(songhash, track_name):
+    # Output bucket objects are named <songhash>-<track>.mp3[cite: 5]
+    object_name = f"{songhash}-{track_name}"
+    try:
+        response = minio_client.get_object("output", object_name)
         file_data = io.BytesIO(response.read())
         response.close()
         response.release_conn()
@@ -140,15 +128,16 @@ def get_track(songhash, track_name):
             download_name=track_name
         )
     except Exception as e:
-        return {"error": str(e)}, 404
+        return jsonify({"error": str(e)}), 404
 
-@app.route('/apiv1/remove/<songhash>/track', methods=['GET', 'DELETE'])
+@app.route('/apiv1/remove/<songhash>/<path:track_name>', methods=["GET", "DELETE"])
 def remove_track(songhash, track_name):
     object_name = f"{songhash}-{track_name}"
-    bucket_name = "demucs-bucket"
-
     try:
-        minio_client.remove_object(bucket_name, object_name)
-        return {"status": "success", "message": f"Successfully removed {track_name} for {songhash}"}, 200
+        minio_client.remove_object("output", object_name)
+        return jsonify({"status": "success", "message": f"Successfully removed {track_name} for {songhash}"}), 200
     except Exception as e:
-        return {"error": str(e)}, 404
+        return jsonify({"error": str(e)}), 404
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, debug=True)
