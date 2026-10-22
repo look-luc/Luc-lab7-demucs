@@ -12,6 +12,7 @@ dependencies = [
     "jsonify>=0.5",
     "jsonpickle>=4.1.4",
     "minio>=7.2.20",
+    "redis>=8.1.0",
 ]
 
 [project.scripts]
