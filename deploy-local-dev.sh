@@ -1,27 +1,31 @@
 #!/bin/sh
 #
-# Launch Redis and MinIO on Kubernetes with local port forwarding
+# Launch Redis and MinIO on Kubernetes and forward connections locally.
 #
 
-# Ensure the namespace exists first
-kubectl create namespace minio-ns
+echo "1. Creating minio-ns namespace..."
+kubectl create namespace minio-ns --dry-run=client -o yaml | kubectl apply -f -
 
-# Apply MinIO deployments and services using the correct filename
+echo "2. Applying MinIO deployments and services..."
 kubectl apply -f minio/minio-deployment.yaml
 kubectl apply -f minio/minio-external-service.yaml
 
-# Apply Redis, REST, Logs, and Worker components
+echo "3. Applying Redis, REST, Logs, and Worker components..."
 kubectl apply -f redis/redis-deployment.yaml
 kubectl apply -f redis/redis-service.yaml
 
 kubectl apply -f rest/rest-deployment.yaml
 kubectl apply -f rest/rest-service.yaml
+
 kubectl apply -f logs/logs-deployment.yaml
 kubectl apply -f worker/worker-deployment.yaml
 
-# Port-forward Redis
-kubectl port-forward --address 0.0.0.0 service/redis 6379:6379 &
+echo "4. Cleaning up any existing port-forward processes..."
+pkill -f "kubectl port-forward" || true
 
-# Port-forward MinIO API and Console using the correct service name (minio-proj)
+echo "5. Setting up local port forwarding..."
+kubectl port-forward --address 0.0.0.0 service/redis 6379:6379 &
 kubectl port-forward -n minio-ns --address 0.0.0.0 service/minio-proj 9000:9000 &
 kubectl port-forward -n minio-ns --address 0.0.0.0 service/minio-proj 9001:9001 &
+
+echo "Deployment complete! Ports are being forwarded."

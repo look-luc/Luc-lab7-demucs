@@ -1,5 +1,5 @@
-FROM python:3.6-alpine
-LABEL MAINTAINER="lude4390@colorado.edu"
+FROM python:3.12-alpine
+LABEL org.opencontainers.image.authors="lude4390@colorado.edu"
 
 WORKDIR /srv
 

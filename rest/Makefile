@@ -2,7 +2,7 @@ VERSION=v1
 DOCKERUSER=lookitsluc
 
 build:
-	docker build -f Dockerfile-rest -t demucs-rest .
+	docker build -f Dockerfile -t demucs-rest .
 
 push:
 	docker tag demucs-rest $(DOCKERUSER)/demucs-rest:$(VERSION)
