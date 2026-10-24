@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Launch Redis and MinIO on Kubernetes and forward connections locally.
+# Launch Redis, MinIO, and REST on Kubernetes and forward connections locally.
 #
 
 echo "1. Creating minio-ns namespace..."
@@ -27,5 +27,6 @@ echo "5. Setting up local port forwarding..."
 kubectl port-forward --address 0.0.0.0 service/redis 6379:6379 &
 kubectl port-forward -n minio-ns --address 0.0.0.0 service/minio-proj 9000:9000 &
 kubectl port-forward -n minio-ns --address 0.0.0.0 service/minio-proj 9001:9001 &
+kubectl port-forward --address 0.0.0.0 service/rest 5001:5001 &
 
-echo "Deployment complete! Ports are being forwarded."
+echo "Deployment complete! All ports are now forwarded."

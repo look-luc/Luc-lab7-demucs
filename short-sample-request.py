@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
 
-import requests
-import json, jsonpickle
-import os
-import sys
 import base64
 import glob
+import json
+import os
+import sys
 
+import jsonpickle
+import requests
 
 #
 # Use localhost & port 5000 if not specified by environment variable REST
 #
-REST = os.getenv("REST") or "localhost:5000"
+REST = os.getenv("REST") or "localhost:5001"
 
 ##
 # The following routine makes a JSON REST query of the specified type
@@ -43,7 +44,7 @@ for mp3 in glob.glob("data/short*mp3"):
             "mp3": base64.b64encode( open(mp3, "rb").read() ).decode('utf-8'),
             "callback": {
                 "url": "http://localhost:5000",
-                "data": {"mp3": mp3, 
+                "data": {"mp3": mp3,
                          "data": "to be returned"}
             }
         },

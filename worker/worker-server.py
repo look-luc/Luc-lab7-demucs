@@ -14,12 +14,20 @@ REDIS_PORT = int(os.environ.get("REDIS_PORT", 6379))
 MINIO_ENDPOINT = os.environ.get("MINIO_ENDPOINT", "minio:9000")
 
 redis_client = redis.StrictRedis(host=REDIS_HOST, port=REDIS_PORT, db=0)
+MINIO_ENDPOINT = os.environ.get('MINIO_ENDPOINT', 'minio:9000')
 minio_client = minio.Minio(
     MINIO_ENDPOINT,
     access_key="rootuser",
     secret_key="rootpass123",
     secure=False
 )
+
+for bucket_name in ["queue", "output"]:
+    try:
+        if not minio_client.bucket_exists(bucket_name):
+            minio_client.make_bucket(bucket_name)
+    except Exception as e:
+        print(f"Error ensuring bucket {bucket_name} exists: {e}", file=sys.stderr)
 
 QUEUE_BUCKET = "queue"
 OUTPUT_BUCKET = "output"

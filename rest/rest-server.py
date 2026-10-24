@@ -18,7 +18,7 @@ redisHost = os.getenv("REDIS_HOST") or "redis"
 redisPort = int(os.getenv("REDIS_PORT") or 6379)
 redis_client = redis.Redis(host=redisHost, port=redisPort, db=0)
 
-# MinIO configuration
+# Configure MinIO endpoint and credentials
 MINIO_ENDPOINT = os.environ.get('MINIO_ENDPOINT', 'minio:9000')
 minio_client = minio.Minio(
     MINIO_ENDPOINT,
@@ -140,4 +140,4 @@ def remove_track(songhash, track_name):
         return jsonify({"error": str(e)}), 404
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5001, debug=True)

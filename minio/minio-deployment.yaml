@@ -13,18 +13,17 @@ spec:
         app: minio-proj
     spec:
       containers:
-      - name: minio
-        image: minio/minio:latest
-        args:
-        - server
-        - /data
-        - --console-address
-        - ":9001"
+      - name: rustfs
+        image: rustfs/rustfs:latest
         env:
-        - name: MINIO_ROOT_USER
+        - name: RUSTFS_ACCESS_KEY
           value: "rootuser"
-        - name: MINIO_ROOT_PASSWORD
+        - name: RUSTFS_SECRET_KEY
           value: "rootpass123"
+        - name: RUSTFS_ADDRESS
+          value: "9000"
+        - name: RUSTFS_CONSOLE_ENABLE
+          value: "true"
         ports:
         - containerPort: 9000
         - containerPort: 9001
