@@ -21,7 +21,7 @@ spec:
         - name: RUSTFS_SECRET_KEY
           value: "rootpass123"
         - name: RUSTFS_ADDRESS
-          value: "9000"
+          value: "0.0.0.0:9000"
         - name: RUSTFS_CONSOLE_ENABLE
           value: "true"
         ports:
